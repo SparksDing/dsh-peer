@@ -1,0 +1,15 @@
+Third-party notices
+===================
+
+lib/transport.js
+  Adapted from @deepseek-ai/dsh-sdk-protocol (MIT License),
+  part of deepseek-harness: https://github.com/deepseek-ai/deepseek-harness
+  Copyright (c) DeepSeek. The framing, request correlation, and error
+  envelope semantics are retained; the module has no runtime dependency on
+  the harness.
+
+lib/link-server.js
+  Subclasses HarnessSdkJsonRpcServer from
+  @deepseek-ai/dsh-sdk-jsonrpc-server (MIT License), part of
+  deepseek-harness. The subclass overrides session creation to compose an
+  agent preset and to fall back to resume when a session already persists.

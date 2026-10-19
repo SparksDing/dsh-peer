@@ -1,0 +1,37 @@
+{
+  "name": "dsh-peer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "install",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "dsh": ">=0.2.0 <0.3.0",
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/schemastery": "~",
+    "@deepseek-ai/dsh-tools": "*",
+    "@deepseek-ai/dsh-sdk-jsonrpc-server": "*"
+  },
+  "description": "Bidirectional JSON-RPC channel between two DeepSeek Harness runtimes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OWNER/dsh-peer.git"
+  }
+}

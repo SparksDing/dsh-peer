@@ -1,0 +1,18 @@
+# Windows link: place this file at
+#   %USERPROFILE%\.dsh\profiles\sdk\cordis.patch.yml
+# and keep the dsh-peer folder beside it as
+#   %USERPROFILE%\.dsh\profiles\sdk\dsh-peer
+# Then run `dsh --profile sdk` in a terminal and keep it open.
+- insert:
+    - id: peer-link
+      name: ./dsh-peer/lib/index.js
+      config:
+        role: link
+        name: windows-pc          # appears as this name in the hub's peer_list
+        token: REPLACE_WITH_HUB_TOKEN
+        connect:
+          # WebSocket rides the already-open 3080 port through nginx.
+          url: ws://8.153.157.183:3080/dsh-peer
+        cwd: 'C:\Users\REPLACE_ME' # working directory peer tasks start in
+        provider: deepseek-official
+        model: deepseek-v4-flash
