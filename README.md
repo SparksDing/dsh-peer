@@ -98,6 +98,27 @@ location = /dsh-peer {
 node bin/peer-ws-bridge.mjs --listen 3098 --target 127.0.0.1:3099 --path /dsh-peer
 ```
 
+### 4. 活动看板（可选）
+
+桥可以顺带把对端的事件流做成一个只读看板：
+
+```bash
+node bin/peer-ws-bridge.mjs --listen 3098 --target 127.0.0.1:3099 --path /dsh-peer --ui-token <token>
+```
+
+浏览器打开 `http://<host>:3098/?token=<token>`。经过 nginx 时再加一条 `/peer-ui/` 转发：
+
+```nginx
+location /peer-ui/ {
+    proxy_pass http://127.0.0.1:3098/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_buffering off;
+}
+```
+
+看板按会话展示用户消息、reasoning、助手文本、工具调用与结果、回合边界，900ms 增量轮询，只读。只有**经过桥**的 WebSocket link 才会出现在看板里；直连 TCP 的 link 不会。
+
 ## 工具
 
 hub 侧（模型可见）：
