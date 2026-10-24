@@ -45,7 +45,7 @@ assert.deepEqual(await byName.peer_ask.execute({ peer: 'win', prompt: 'go', time
   timedOut: false,
 })
 assert.equal(hubCalls.at(-1)[1].timeoutMs, 1_000, 'deadline is clamped to the floor')
-assert.deepEqual(await byName.peer_send.execute({ peer: 'win', prompt: 'go' }), { peer: 'win', sessionId: 'peer-win-default', messageId: 'm1' })
+assert.deepEqual(await byName.peer_send.execute({ peer: 'win', prompt: 'go' }, exec), { peer: 'win', sessionId: 'peer-win-default', messageId: 'm1' })
 assert.deepEqual(await byName.peer_wait.execute({ peer: 'win' }, exec), { messages: [], timedOut: true })
 assert.equal(hubCalls.at(-1)[1].timeoutMs, 120_000, 'wait default')
 assert.deepEqual(await byName.peer_inbox.execute({}), { messages: [{ peer: 'win', text: 'hi', at: '2026-01-01T00:00:00.000Z' }] })
