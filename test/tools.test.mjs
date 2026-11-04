@@ -67,11 +67,13 @@ const link = {
 const linkCtx = { tools: { register: tool => registered.push(tool) } }
 registerLinkTools(linkCtx, link)
 const linkTools = registered.splice(0)
-assert.deepEqual(linkTools.map(tool => tool.name), ['peer_reply', 'peer_status'])
+assert.deepEqual(linkTools.map(tool => tool.name), ['peer_reply', 'peer_send', 'peer_status'])
 const agentExec = { signal: new AbortController().signal, agent: { session: { id: 'local-session' } } }
 assert.deepEqual(await linkTools[0].execute({ text: 'hello' }, agentExec), { accepted: true, hub: 'linux-hub' })
 assert.deepEqual(linkCalls, [['hello', 'local-session']])
-assert.deepEqual(await linkTools[1].execute({}), {
+assert.deepEqual(await linkTools[1].execute({ text: 'unsolicited' }, agentExec), { accepted: true, hub: 'linux-hub' })
+assert.deepEqual(linkCalls, [['hello', 'local-session'], ['unsolicited', 'local-session']])
+assert.deepEqual(await linkTools[2].execute({}), {
   connected: true,
   hub: 'linux-hub',
   url: 'tcp://h:3099',

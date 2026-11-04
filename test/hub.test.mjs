@@ -9,7 +9,8 @@ import { PeerHub } from '../lib/hub.js'
 import { PeerConnection } from '../lib/protocol.js'
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} }
-const hub = new PeerHub({ logger, get: () => undefined }, {
+const hubCtx = { logger, get: () => undefined }
+const hub = new PeerHub(hubCtx, {
   name: 'test-hub',
   token: 'correct-horse',
   listen: { host: '127.0.0.1', port: 3199 },
@@ -109,5 +110,23 @@ link.close()
 await new Promise(resolve => setTimeout(resolve, 20))
 assert.equal(hub.list().length, 0)
 
+// 7. An unsolicited reply wakes the local agent that asked the session.
+{
+  const woken = []
+  const previousGet = hubCtx.get
+  hubCtx.get = name => (name === 'agents'
+    ? { get: id => (id === 'session-local-9' ? { followup: message => woken.push(message) } : undefined) }
+    : undefined)
+  const link = await connectFakeLink('waker', 'correct-horse')
+  const asked = await hub.ask({ peer: 'waker', prompt: 'collect the report', callerSessionId: 'session-local-9' })
+  const replied = await link.request('peer/reply', { text: 'report: done', sessionId: asked.sessionId })
+  assert.equal(replied.delivered, true)
+  assert.equal(woken.length, 1)
+  assert.match(woken[0].content[0].text, /report: done/)
+  hubCtx.get = previousGet
+  link.close()
+}
+
 await hub.stop()
 console.log('hub.test.mjs: all checks passed')
+
