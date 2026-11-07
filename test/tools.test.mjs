@@ -80,7 +80,7 @@ const link = {
   status: () => ({ connected: true, hub: 'linux-hub', url: 'tcp://h:3099', name: 'win', since: '2026-01-01T00:00:00.000Z', attempt: 0, version: '0.2.0' }),
   reply: async (text, sessionId) => {
     linkCalls.push([text, sessionId])
-    return { accepted: true, delivered: true }
+    return { accepted: true, delivered: true, pending: false }
   },
 }
 const linkCtx = { tools: { register: tool => registered.push(tool) } }
@@ -88,9 +88,9 @@ registerLinkTools(linkCtx, link)
 const linkTools = registered.splice(0)
 assert.deepEqual(linkTools.map(tool => tool.name), ['peer_reply', 'peer_send', 'peer_status'])
 const agentExec = { signal: new AbortController().signal, agent: { session: { id: 'local-session' } } }
-assert.deepEqual(await linkTools[0].execute({ text: 'hello' }, agentExec), { accepted: true, delivered: true, hub: 'linux-hub' })
+assert.deepEqual(await linkTools[0].execute({ text: 'hello' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
 assert.deepEqual(linkCalls, [['hello', 'local-session']])
-assert.deepEqual(await linkTools[1].execute({ text: 'unsolicited' }, agentExec), { accepted: true, delivered: true, hub: 'linux-hub' })
+assert.deepEqual(await linkTools[1].execute({ text: 'unsolicited' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
 assert.deepEqual(linkCalls, [['hello', 'local-session'], ['unsolicited', 'local-session']])
 assert.deepEqual(await linkTools[2].execute({}), {
   connected: true,
@@ -117,7 +117,7 @@ for (const tool of [...hubTools, ...linkTools]) {
               : tool.name === 'peer_bind'
                 ? { ok: true, sessionId: 's' }
             : tool.name === 'peer_reply'
-              ? { accepted: true, delivered: true, hub: 'h' }
+              ? { accepted: true, delivered: true, pending: false, hub: 'h' }
           : tool.name === 'peer_status'
             ? { connected: false, hub: '', url: 'tcp://h', since: '' }
             : { messages: [], timedOut: true }
