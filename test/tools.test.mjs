@@ -19,6 +19,14 @@ const hub = {
     hubCalls.push(['send', request])
     return { peer: 'win', sessionId: 'peer-win-default', messageId: 'm1' }
   },
+  steer: async request => {
+    hubCalls.push(['steer', request])
+    return { peer: 'win', sessionId: 'peer-win-default', mode: 'steer', accepted: true, messageId: 'm2' }
+  },
+  cancel: async request => {
+    hubCalls.push(['cancel', request])
+    return { peer: 'win', sessionId: 'peer-win-default', cancelled: true }
+  },
   wait: async request => {
     hubCalls.push(['wait', request])
     return { messages: [], timedOut: true }
@@ -30,7 +38,7 @@ const hub = {
 }
 registerHubTools(ctx, hub)
 const hubTools = registered.splice(0)
-assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_ask', 'peer_send', 'peer_wait', 'peer_inbox'])
+assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_ask', 'peer_send', 'peer_steer', 'peer_cancel', 'peer_wait', 'peer_inbox'])
 
 const byName = Object.fromEntries(hubTools.map(tool => [tool.name, tool]))
 const exec = { signal: new AbortController().signal, agent: undefined }
@@ -46,6 +54,8 @@ assert.deepEqual(await byName.peer_ask.execute({ peer: 'win', prompt: 'go', time
 })
 assert.equal(hubCalls.at(-1)[1].timeoutMs, 1_000, 'deadline is clamped to the floor')
 assert.deepEqual(await byName.peer_send.execute({ peer: 'win', prompt: 'go' }, exec), { peer: 'win', sessionId: 'peer-win-default', messageId: 'm1' })
+assert.deepEqual(await byName.peer_steer.execute({ peer: 'win', text: 'stop that' }, exec), { peer: 'win', sessionId: 'peer-win-default', mode: 'steer', accepted: true })
+assert.deepEqual(await byName.peer_cancel.execute({ peer: 'win', reason: 'test' }, exec), { peer: 'win', sessionId: 'peer-win-default', cancelled: true })
 assert.deepEqual(await byName.peer_wait.execute({ peer: 'win' }, exec), { messages: [], timedOut: true })
 assert.equal(hubCalls.at(-1)[1].timeoutMs, 120_000, 'wait default')
 assert.deepEqual(await byName.peer_inbox.execute({}), { messages: [{ peer: 'win', text: 'hi', at: '2026-01-01T00:00:00.000Z' }] })
@@ -89,8 +99,12 @@ for (const tool of [...hubTools, ...linkTools]) {
       ? { peer: 'w', sessionId: 's', text: 't', status: 'completed', elapsedMs: 1, timedOut: false }
       : tool.name === 'peer_send'
         ? { peer: 'w', sessionId: 's', messageId: 'm' }
-        : tool.name === 'peer_reply'
-          ? { accepted: true, delivered: true, hub: 'h' }
+        : tool.name === 'peer_steer'
+          ? { peer: 'w', sessionId: 's', mode: 'steer', accepted: true }
+          : tool.name === 'peer_cancel'
+            ? { peer: 'w', sessionId: 's', cancelled: true }
+            : tool.name === 'peer_reply'
+              ? { accepted: true, delivered: true, hub: 'h' }
           : tool.name === 'peer_status'
             ? { connected: false, hub: '', url: 'tcp://h', since: '' }
             : { messages: [], timedOut: true }

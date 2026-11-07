@@ -20,8 +20,10 @@ await hub.start()
 
 let replySeq = 0
 const replies = []
+const steerCalls = []
+const cancelCalls = []
 
-async function connectFakeLink(name, token) {
+async function connectFakeLink(name, token, version = '0.3.0') {
   const socket = connect(3199, '127.0.0.1')
   await once(socket, 'connect')
   const conn = new PeerConnection(socket, { label: 'fake', logger })
@@ -33,6 +35,14 @@ async function connectFakeLink(name, token) {
         return { serverInfo: { name: 'fake-runtime', version: '0' } }
       case 'peer/ensure-session':
         return { resumed: false }
+      case 'session/steer': {
+        steerCalls.push(params)
+        return { accepted: true, messageId: 'steer-1' }
+      }
+      case 'session/cancel': {
+        cancelCalls.push(params)
+        return { cancelled: true, status: 'cancelled' }
+      }
       case 'session/prompt': {
         const messageId = `msg-${++replySeq}`
         const sessionId = String(params.sessionId)
@@ -49,7 +59,7 @@ async function connectFakeLink(name, token) {
     }
   })
   conn.start()
-  const result = await conn.request('peer/hello', { protocol: 1, name, role: 'link', token })
+  const result = await conn.request('peer/hello', { protocol: 1, name, role: 'link', token, version })
   assert.equal(result.protocol, 1)
   return conn
 }
@@ -142,6 +152,35 @@ assert.equal(hub.list().length, 0)
   assert.equal(woken.length, 1)
   assert.match(woken[0].content[0].text, /spontaneous/)
   hubCtx.get = previousGet
+  link.close()
+}
+
+
+// 9. A running peer receives steer; an idle peer gets a queued prompt.
+{
+  const link = await connectFakeLink('steerer', 'correct-horse', '0.3.0')
+  await hub.send({ peer: 'steerer', prompt: 'work', session: 'chat' })
+  await new Promise(resolve => setTimeout(resolve, 60))
+  link.notify('session.status', { sessionId: 'peer-steerer-chat', status: 'running' })
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const steered = await hub.steer({ peer: 'steerer', text: 'prefer plan A', session: 'chat' })
+  assert.equal(steered.mode, 'steer')
+  assert.equal(steered.accepted, true)
+  assert.equal(steerCalls.length, 1)
+  assert.equal(steerCalls[0].contentBlocks[0].text, 'prefer plan A')
+  const cancelled = await hub.cancel({ peer: 'steerer', session: 'chat', reason: 'test' })
+  assert.equal(cancelled.cancelled, true)
+  assert.equal(cancelCalls.length, 1)
+  link.close()
+}
+
+// 10. An idle session and an old link both degrade to a prompt.
+{
+  const link = await connectFakeLink('oldlink', 'correct-horse', '0.2.0')
+  await hub.send({ peer: 'oldlink', prompt: 'work', session: 'chat' })
+  const steered = await hub.steer({ peer: 'oldlink', text: 'nudge', session: 'chat' })
+  assert.equal(steered.mode, 'prompt')
+  await assert.rejects(hub.cancel({ peer: 'oldlink', session: 'chat' }), /0\.3\.0/)
   link.close()
 }
 
