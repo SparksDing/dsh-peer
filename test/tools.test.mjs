@@ -11,6 +11,7 @@ const ctx = { tools: { register: tool => registered.push(tool) } }
 const hubCalls = []
 const hub = {
   list: () => [],
+  targets: peer => ({ peer, cwd: '/w', sessions: ['peer-win-default'] }),
   ask: async request => {
     hubCalls.push(['ask', request])
     return { peer: 'win', sessionId: 'peer-win-default', text: 'done', status: 'completed', elapsedMs: 5, timedOut: false }
@@ -27,6 +28,11 @@ const hub = {
     hubCalls.push(['cancel', request])
     return { peer: 'win', sessionId: 'peer-win-default', cancelled: true }
   },
+  pendingView: () => ({ pending: [{ id: 'pending-1', peer: 'win', remoteSessionId: 'peer-win-default', workspace: '/w', text: 'hi', at: 1 }], sessions: [{ id: 's1', workspace: '/w' }] }),
+  bind: async request => {
+    hubCalls.push(['bind', request])
+    return { ok: true, sessionId: request.sessionId ?? 'peer-inbox-x' }
+  },
   wait: async request => {
     hubCalls.push(['wait', request])
     return { messages: [], timedOut: true }
@@ -38,12 +44,13 @@ const hub = {
 }
 registerHubTools(ctx, hub)
 const hubTools = registered.splice(0)
-assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_ask', 'peer_send', 'peer_steer', 'peer_cancel', 'peer_wait', 'peer_inbox'])
+assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_targets', 'peer_ask', 'peer_send', 'peer_steer', 'peer_cancel', 'peer_pending', 'peer_bind', 'peer_wait', 'peer_inbox'])
 
 const byName = Object.fromEntries(hubTools.map(tool => [tool.name, tool]))
 const exec = { signal: new AbortController().signal, agent: undefined }
 
 assert.deepEqual(await byName.peer_list.execute({}, exec), { links: [] })
+assert.deepEqual(await byName.peer_targets.execute({ peer: 'win' }, exec), { peer: 'win', cwd: '/w', sessions: ['peer-win-default'] })
 assert.deepEqual(await byName.peer_ask.execute({ peer: 'win', prompt: 'go', timeoutMs: 10 }, exec), {
   peer: 'win',
   sessionId: 'peer-win-default',
@@ -56,6 +63,8 @@ assert.equal(hubCalls.at(-1)[1].timeoutMs, 1_000, 'deadline is clamped to the fl
 assert.deepEqual(await byName.peer_send.execute({ peer: 'win', prompt: 'go' }, exec), { peer: 'win', sessionId: 'peer-win-default', messageId: 'm1' })
 assert.deepEqual(await byName.peer_steer.execute({ peer: 'win', text: 'stop that' }, exec), { peer: 'win', sessionId: 'peer-win-default', mode: 'steer', accepted: true })
 assert.deepEqual(await byName.peer_cancel.execute({ peer: 'win', reason: 'test' }, exec), { peer: 'win', sessionId: 'peer-win-default', cancelled: true })
+assert.deepEqual(await byName.peer_pending.execute({}, exec), { pending: [{ id: 'pending-1', peer: 'win', remoteSessionId: 'peer-win-default', workspace: '/w', text: 'hi', at: 1 }], sessions: [{ id: 's1', workspace: '/w' }] })
+assert.deepEqual(await byName.peer_bind.execute({ id: 'pending-1', sessionId: 's1' }, exec), { ok: true, sessionId: 's1' })
 assert.deepEqual(await byName.peer_wait.execute({ peer: 'win' }, exec), { messages: [], timedOut: true })
 assert.equal(hubCalls.at(-1)[1].timeoutMs, 120_000, 'wait default')
 assert.deepEqual(await byName.peer_inbox.execute({}), { messages: [{ peer: 'win', text: 'hi', at: '2026-01-01T00:00:00.000Z' }] })
@@ -103,6 +112,10 @@ for (const tool of [...hubTools, ...linkTools]) {
           ? { peer: 'w', sessionId: 's', mode: 'steer', accepted: true }
           : tool.name === 'peer_cancel'
             ? { peer: 'w', sessionId: 's', cancelled: true }
+            : tool.name === 'peer_pending'
+              ? { pending: [{ id: 'p', peer: 'w', remoteSessionId: 'r', workspace: '/w', text: 't', at: 1 }], sessions: [] }
+              : tool.name === 'peer_bind'
+                ? { ok: true, sessionId: 's' }
             : tool.name === 'peer_reply'
               ? { accepted: true, delivered: true, hub: 'h' }
           : tool.name === 'peer_status'

@@ -15,6 +15,7 @@ const hub = new PeerHub(hubCtx, {
   token: 'correct-horse',
   listen: { host: '127.0.0.1', port: 3199 },
   version: 'test',
+  bindMode: 'picker',
 })
 await hub.start()
 
@@ -120,9 +121,10 @@ link.close()
 await new Promise(resolve => setTimeout(resolve, 20))
 assert.equal(hub.list().length, 0)
 
-// 7. An unsolicited reply wakes the local agent that asked the session.
+// 7. An unsolicited reply waits for the picker, then wakes the chosen session.
 {
   const woken = []
+  hub.pending.length = 0
   const previousGet = hubCtx.get
   hubCtx.get = name => (name === 'agents'
     ? { get: id => (id === 'session-local-9' ? { followup: message => woken.push(message) } : undefined) }
@@ -130,31 +132,33 @@ assert.equal(hub.list().length, 0)
   const link = await connectFakeLink('waker', 'correct-horse')
   const asked = await hub.ask({ peer: 'waker', prompt: 'collect the report', callerSessionId: 'session-local-9' })
   const replied = await link.request('peer/reply', { text: 'report: done', sessionId: asked.sessionId })
-  assert.equal(replied.delivered, true)
-  assert.equal(woken.length, 1)
-  assert.match(woken[0].content[0].text, /report: done/)
+  assert.equal(replied.pending, true)
+  assert.equal(hub.pending.length, 1)
+  assert.equal(hub.pending[0].peer, 'waker')
+  assert.equal(woken.length, 1, 'the pending notice wakes the current session')
+  assert.match(woken[0].content[0].text, /待绑定消息/)
+  const bound = await hub.bind({ id: hub.pending[0].id, sessionId: 'session-local-9' })
+  assert.equal(bound.ok, true)
+  assert.equal(woken.length, 2)
+  assert.match(woken[1].content[0].text, /report: done/)
+  assert.equal(hub.pending.length, 0)
   hubCtx.get = previousGet
   link.close()
 }
 
-
-// 8. A reply from an unknown remote session wakes the last local caller.
+// 8. Binding to a session with no live agent fails cleanly.
 {
-  const woken = []
+  hub.pending.length = 0
   const previousGet = hubCtx.get
-  hubCtx.get = name => (name === 'agents'
-    ? { get: id => (id === 'session-local-9' ? { followup: message => woken.push(message) } : undefined) }
-    : undefined)
-  const link = await connectFakeLink('fallback', 'correct-horse')
-  await hub.ask({ peer: 'fallback', prompt: 'do work', callerSessionId: 'session-local-9' })
-  const replied = await link.request('peer/reply', { text: 'spontaneous', sessionId: 'unknown-session' })
-  assert.equal(replied.delivered, true)
-  assert.equal(woken.length, 1)
-  assert.match(woken[0].content[0].text, /spontaneous/)
+  hubCtx.get = () => undefined
+  const link = await connectFakeLink('binder', 'correct-horse')
+  await link.request('peer/reply', { text: 'hello', sessionId: 'peer-binder-default' })
+  const bound = await hub.bind({ id: hub.pending[0].id, sessionId: 'not-live' })
+  assert.equal(bound.ok, false)
+  assert.match(bound.error, /not live/)
   hubCtx.get = previousGet
   link.close()
 }
-
 
 // 9. A running peer receives steer; an idle peer gets a queued prompt.
 {
