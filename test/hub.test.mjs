@@ -127,6 +127,24 @@ assert.equal(hub.list().length, 0)
   link.close()
 }
 
+
+// 8. A reply from an unknown remote session wakes the last local caller.
+{
+  const woken = []
+  const previousGet = hubCtx.get
+  hubCtx.get = name => (name === 'agents'
+    ? { get: id => (id === 'session-local-9' ? { followup: message => woken.push(message) } : undefined) }
+    : undefined)
+  const link = await connectFakeLink('fallback', 'correct-horse')
+  await hub.ask({ peer: 'fallback', prompt: 'do work', callerSessionId: 'session-local-9' })
+  const replied = await link.request('peer/reply', { text: 'spontaneous', sessionId: 'unknown-session' })
+  assert.equal(replied.delivered, true)
+  assert.equal(woken.length, 1)
+  assert.match(woken[0].content[0].text, /spontaneous/)
+  hubCtx.get = previousGet
+  link.close()
+}
+
 await hub.stop()
 console.log('hub.test.mjs: all checks passed')
 
