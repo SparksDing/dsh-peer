@@ -11,7 +11,7 @@ const ctx = { tools: { register: tool => registered.push(tool) } }
 const hubCalls = []
 const hub = {
   list: () => [],
-  targets: peer => ({ peer, cwd: '/w', sessions: ['peer-win-default'] }),
+  targets: async peer => ({ peer, cwd: '/w', workspaces: [{ path: '/w', title: 'w' }], sessions: [{ id: 'peer-win-default', cwd: '/w', title: 'win chat', createdAt: 1 }] }),
   ask: async request => {
     hubCalls.push(['ask', request])
     return { peer: 'win', sessionId: 'peer-win-default', text: 'done', status: 'completed', elapsedMs: 5, timedOut: false }
@@ -50,7 +50,7 @@ const byName = Object.fromEntries(hubTools.map(tool => [tool.name, tool]))
 const exec = { signal: new AbortController().signal, agent: undefined }
 
 assert.deepEqual(await byName.peer_list.execute({}, exec), { links: [] })
-assert.deepEqual(await byName.peer_targets.execute({ peer: 'win' }, exec), { peer: 'win', cwd: '/w', sessions: ['peer-win-default'] })
+assert.deepEqual(await byName.peer_targets.execute({ peer: 'win' }, exec), { peer: 'win', cwd: '/w', workspaces: [{ path: '/w', title: 'w' }], sessions: [{ id: 'peer-win-default', cwd: '/w', title: 'win chat', createdAt: 1 }] })
 assert.deepEqual(await byName.peer_ask.execute({ peer: 'win', prompt: 'go', timeoutMs: 10 }, exec), {
   peer: 'win',
   sessionId: 'peer-win-default',
