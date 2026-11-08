@@ -1,3 +1,9 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dsh-peer-test-'))
+
 /**
  * Hub protocol check: one real `PeerHub` against an in-process fake link.
  * Run with `node test/hub.test.mjs`; it needs no model and no dsh process.
