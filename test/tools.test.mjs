@@ -44,7 +44,7 @@ const hub = {
 }
 registerHubTools(ctx, hub)
 const hubTools = registered.splice(0)
-assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_targets', 'peer_ask', 'peer_send', 'peer_steer', 'peer_cancel', 'peer_pending', 'peer_bind', 'peer_wait', 'peer_inbox'])
+assert.deepEqual(hubTools.map(tool => tool.name), ['peer_list', 'peer_targets', 'peer_ask', 'peer_send', 'peer_reply', 'peer_steer', 'peer_cancel', 'peer_pending', 'peer_bind', 'peer_wait', 'peer_inbox'])
 
 const byName = Object.fromEntries(hubTools.map(tool => [tool.name, tool]))
 const exec = { signal: new AbortController().signal, agent: undefined }
