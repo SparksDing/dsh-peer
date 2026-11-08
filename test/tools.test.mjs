@@ -77,6 +77,8 @@ for (const tool of hubTools) {
 const linkCalls = []
 const link = {
   hubInfo: { name: 'linux-hub' },
+  targets: async () => ({ workspaces: [], sessions: [] }),
+  originFor: () => undefined,
   status: () => ({ connected: true, hub: 'linux-hub', url: 'tcp://h:3099', name: 'win', since: '2026-01-01T00:00:00.000Z', attempt: 0, version: '0.2.0' }),
   reply: async (text, sessionId) => {
     linkCalls.push([text, sessionId])
@@ -86,13 +88,15 @@ const link = {
 const linkCtx = { tools: { register: tool => registered.push(tool) } }
 registerLinkTools(linkCtx, link)
 const linkTools = registered.splice(0)
-assert.deepEqual(linkTools.map(tool => tool.name), ['peer_reply', 'peer_send', 'peer_status'])
+assert.deepEqual(linkTools.map(tool => tool.name), ['peer_reply', 'peer_targets', 'peer_ask', 'peer_send', 'peer_status'])
 const agentExec = { signal: new AbortController().signal, agent: { session: { id: 'local-session' } } }
-assert.deepEqual(await linkTools[0].execute({ text: 'hello' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
+const linkByName = Object.fromEntries(linkTools.map(tool => [tool.name, tool]))
+assert.deepEqual(await linkByName.peer_reply.execute({ text: 'hello' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
 assert.deepEqual(linkCalls, [['hello', 'local-session']])
-assert.deepEqual(await linkTools[1].execute({ text: 'unsolicited' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
-assert.deepEqual(linkCalls, [['hello', 'local-session'], ['unsolicited', 'local-session']])
-assert.deepEqual(await linkTools[2].execute({}), {
+assert.deepEqual(await linkByName.peer_targets.execute({}, agentExec), { workspaces: [], sessions: [] })
+assert.deepEqual(await linkByName.peer_ask.execute({ text: 'q' }, agentExec), { hub: 'linux-hub', reply: '(no reply before timeout)' })
+assert.deepEqual(await linkByName.peer_send.execute({ text: 'unsolicited' }, agentExec), { accepted: true, delivered: true, pending: false, hub: 'linux-hub' })
+assert.deepEqual(await linkByName.peer_status.execute({}), {
   connected: true,
   hub: 'linux-hub',
   url: 'tcp://h:3099',
